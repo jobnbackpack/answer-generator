@@ -6,12 +6,10 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-resty/resty/v2"
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/joho/godotenv"
-)
-
-const (
-	api_endpoint = "https://api.openai.com/v1/chat/completions"
+	"jobnbackpack.com/answer_generator/chat"
+	"jobnbackpack.com/answer_generator/view"
 )
 
 func main() {
@@ -20,34 +18,16 @@ func main() {
 		log.Fatalf("Error loading .env file: %v", err)
 	}
 
-	apiKey := os.Getenv("GPT_API_TOKEN")
-	client := resty.New()
+	response := chat.CreateClient("Welcher Jünger ging auf Wasser?")
 
-	response, err := client.R().
-		SetAuthToken(apiKey).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("OpenAI-Organization", os.Getenv("GPT_ORG_ID")).
-		SetHeader("OpenAI-Project", os.Getenv("GPT_PROJECT_ID")).
-		SetBody(map[string]interface{}{
-			"model":      "gpt-3.5-turbo",
-			"messages":   []interface{}{map[string]interface{}{"role": "user", "content": "I want to create a quiz with biblical questions. I want you to give me three alternative answers to following question: Which deciple walked on water?"}},
-			"max_tokens": 50,
-		}).
-		Post(api_endpoint)
-	if err != nil {
-		log.Fatalf("Error while sending send the request: %v", err)
+	var data []view.Choice
+	err = json.Unmarshal([]byte(response), &data)
+
+	fmt.Printf("%+v", data)
+
+	p := tea.NewProgram(view.InitialModel("Welcher Jünger ging auf Wasser?", data))
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("Alas, there's been an error: %v", err)
+		os.Exit(1)
 	}
-
-	body := response.Body()
-
-	var data map[string]interface{}
-	err = json.Unmarshal(body, &data)
-	if err != nil {
-		fmt.Println("Error while decoding JSON response:", err)
-		return
-	}
-
-	// Extract the content from the JSON response
-	content := data["choices"].([]interface{})[0].(map[string]interface{})["message"].(map[string]interface{})["content"].(string)
-	fmt.Println(content)
 }
