@@ -25,7 +25,7 @@ func main() {
 
 	fmt.Printf("%+v", data)
 
-	p := tea.NewProgram(view.InitialModel("Welcher Jünger ging auf Wasser?", data))
+	p := tea.NewProgram(view.CreateView("Welcher Jünger ging auf Wasser?", data))
 	if _, err := p.Run(); err != nil {
 		fmt.Printf("Alas, there's been an error: %v", err)
 		os.Exit(1)
