@@ -15,7 +15,8 @@ import (
 
 func main() {
 	initEnv()
-	initLogger()
+	f := initLogger()
+	defer f.Close()
 
 	p := tea.NewProgram(view.CreateView("Welcher Jünger ging auf Wasser?", askGPT()))
 
@@ -44,11 +45,13 @@ func initEnv() {
 	}
 }
 
-func initLogger() {
+func initLogger() *os.File {
 	f, err := logger.LogToFile("debug.log", "DEBUG")
 	if err != nil {
 		fmt.Println("fatal:", err)
 		os.Exit(1)
 	}
-	defer f.Close()
+	log.Print("I started..")
+
+	return f
 }

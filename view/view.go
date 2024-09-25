@@ -28,7 +28,7 @@ type model struct {
 }
 
 func CreateView(question string, choiceResult []Choice) model {
-	log.Printf("%v", choiceResult)
+	log.Printf("%v", choiceResult[0].Title())
 
 	items := []list.Item{
 		choiceResult[0],
