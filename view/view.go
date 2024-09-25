@@ -1,6 +1,8 @@
 package view
 
 import (
+	"log"
+
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -26,6 +28,8 @@ type model struct {
 }
 
 func CreateView(question string, choiceResult []Choice) model {
+	log.Printf("%v", choiceResult)
+
 	items := []list.Item{
 		choiceResult[0],
 		choiceResult[1],
