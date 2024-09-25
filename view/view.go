@@ -16,6 +16,7 @@ var (
 	docStyle          = lipgloss.NewStyle().Margin(1, 2)
 	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
 	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
+	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
 )
 
 type Choice struct {
@@ -55,7 +56,8 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 }
 
 type model struct {
-	list list.Model
+	list   list.Model
+	choice interface{}
 }
 
 func CreateView(question string, choiceResult []Choice) model {
@@ -75,7 +77,8 @@ func CreateView(question string, choiceResult []Choice) model {
 	newList.Styles.Title = titleStyle
 
 	return model{
-		list: newList,
+		list:   newList,
+		choice: nil,
 	}
 }
 
@@ -89,6 +92,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch msg.String() {
 		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "enter":
+			i, ok := m.list.SelectedItem().(Choice)
+			if ok {
+				m.choice = i
+			}
 			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
@@ -104,5 +113,13 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
+	if option, ok := m.choice.(Choice); ok {
+		if option.Correct {
+			return quitTextStyle.Render(fmt.Sprintf("%s? Sounds good to me.", option.Title()))
+		}
+		return quitTextStyle.Render(fmt.Sprintf("It's not %s.", option.Title()))
+	} else {
+		log.Println("m.Choice is not an Choice struct.")
+	}
 	return docStyle.Render(m.list.View())
 }
