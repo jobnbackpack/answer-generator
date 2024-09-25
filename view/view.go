@@ -2,87 +2,46 @@ package view
 
 import (
 	"fmt"
-	"io"
 	"log"
-	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"jobnbackpack.com/answer_generator/chat"
+	"jobnbackpack.com/answer_generator/models"
 )
 
-var (
-	titleStyle        = lipgloss.NewStyle().MarginLeft(2)
-	docStyle          = lipgloss.NewStyle().Margin(1, 2)
-	itemStyle         = lipgloss.NewStyle().PaddingLeft(4)
-	selectedItemStyle = lipgloss.NewStyle().PaddingLeft(2).Foreground(lipgloss.Color("170"))
-	quitTextStyle     = lipgloss.NewStyle().Margin(1, 0, 2, 4)
-)
-
-type Choice struct {
-	Value   string `json:"value"`
-	Correct bool   `json:"correct"`
-}
-
-func (c Choice) FilterValue() string {
-	return c.Value
-}
-
-func (c Choice) Title() string {
-	return c.Value
-}
-
-type itemDelegate struct{}
-
-func (d itemDelegate) Height() int                             { return 1 }
-func (d itemDelegate) Spacing() int                            { return 0 }
-func (d itemDelegate) Update(_ tea.Msg, _ *list.Model) tea.Cmd { return nil }
-func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list.Item) {
-	i, ok := listItem.(Choice)
-	if !ok {
-		return
-	}
-
-	str := fmt.Sprintf("%d. %s", index+1, i.Title())
-
-	fn := itemStyle.Render
-	if index == m.Index() {
-		fn = func(s ...string) string {
-			return selectedItemStyle.Render("> " + strings.Join(s, " "))
-		}
-	}
-
-	fmt.Fprint(w, fn(str))
-}
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 type model struct {
-	list   list.Model
-	choice interface{}
+	list        list.Model
+	choice      interface{}
+	input       textinput.Model
+	currentView int
 }
 
-func CreateView(question string, choiceResult []Choice) model {
-	log.Printf("%v", choiceResult[0].Title())
-
-	items := []list.Item{
-		choiceResult[0],
-		choiceResult[1],
-		choiceResult[2],
-		choiceResult[3],
-	}
-
-	newList := list.New(items, itemDelegate{}, 0, 0)
-	newList.Title = question
-	newList.SetShowStatusBar(false)
-	newList.SetFilteringEnabled(false)
-	newList.Styles.Title = titleStyle
+func CreateView() model {
+	ti := textinput.New()
+	ti.Placeholder = "Welcher der Juenger konnte auf Wasser gehen?"
+	ti.Focus()
+	ti.CharLimit = 156
+	ti.Width = 20
 
 	return model{
-		list:   newList,
-		choice: nil,
+		currentView: 0,
+		input:       ti,
+		choice:      nil,
 	}
 }
 
 func (m model) Init() tea.Cmd {
+	switch m.currentView {
+	case 0:
+		return textinput.Blink
+	case 1:
+		return nil
+	}
 	return nil
 }
 
@@ -94,32 +53,57 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "enter":
-			i, ok := m.list.SelectedItem().(Choice)
-			if ok {
-				m.choice = i
+			switch m.currentView {
+			case 1:
+				i, ok := m.list.SelectedItem().(models.Choice)
+				if ok {
+					m.choice = i
+				}
+				// return m, tea.Quit
+			case 0:
+				question := m.input.Value()
+				newList := CreateList(question, chat.AskGPT(question))
+				m.list = newList
+				m.currentView = 1
 			}
-			return m, tea.Quit
 		}
 	case tea.WindowSizeMsg:
-		h, v := docStyle.GetFrameSize()
-		m.list.SetSize(msg.Width-h, msg.Height-v)
+		if m.currentView == 1 {
+			h, v := docStyle.GetFrameSize()
+			m.list.SetSize(msg.Width-h, msg.Height-v)
+		}
 
 	}
 
 	var cmd tea.Cmd
-	m.list, cmd = m.list.Update(msg)
+	switch m.currentView {
+	case 1:
+		m.list, cmd = m.list.Update(msg)
+	case 0:
+		m.input, cmd = m.input.Update(msg)
+	}
 
 	return m, cmd
 }
 
 func (m model) View() string {
-	if option, ok := m.choice.(Choice); ok {
-		if option.Correct {
-			return quitTextStyle.Render(fmt.Sprintf("%s? Sounds good to me.", option.Title()))
+	switch m.currentView {
+	case 1:
+		if option, ok := m.choice.(models.Choice); ok {
+			if option.Correct {
+				return quitTextStyle.Render(fmt.Sprintf("%s ist richtig!", option.Title()))
+			}
+			return quitTextStyle.Render(fmt.Sprintf("Es ist nicht %s.", option.Title()))
+		} else {
+			log.Println("Choice is not an Choice struct.")
 		}
-		return quitTextStyle.Render(fmt.Sprintf("It's not %s.", option.Title()))
-	} else {
-		log.Println("m.Choice is not an Choice struct.")
+		return docStyle.Render(m.list.View())
+	case 0:
+		return fmt.Sprintf(
+			"Stelle eine Quiz Frage zur Bibel:\n\n%s\n\n%s",
+			m.input.View(),
+			"(esc to quit)",
+		) + "\n"
 	}
-	return docStyle.Render(m.list.View())
+	return quitTextStyle.Render("Es gibt keine current view")
 }

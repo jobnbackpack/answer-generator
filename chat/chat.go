@@ -7,13 +7,26 @@ import (
 	"os"
 
 	"github.com/go-resty/resty/v2"
+	"jobnbackpack.com/answer_generator/models"
 )
 
 const (
 	api_endpoint = "https://api.openai.com/v1/chat/completions"
 )
 
-func CreateClient(question string) string {
+func AskGPT(question string) []models.Choice {
+	response := createClient(question)
+
+	var data []models.Choice
+	err := json.Unmarshal([]byte(response), &data)
+	if err != nil {
+		log.Printf("%v", err)
+	}
+
+	return data
+}
+
+func createClient(question string) string {
 	apiKey := os.Getenv("GPT_API_TOKEN")
 	client := resty.New()
 
