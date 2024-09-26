@@ -68,8 +68,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		}
 	case tea.WindowSizeMsg:
-		if m.currentView == 1 {
-			h, v := docStyle.GetFrameSize()
+		h, v := docStyle.GetFrameSize()
+		switch m.currentView {
+		case 1:
 			m.list.SetSize(msg.Width-h, msg.Height-v)
 		}
 
