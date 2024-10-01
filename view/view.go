@@ -26,7 +26,6 @@ func CreateView() model {
 	ti.Placeholder = "Welcher der Juenger konnte auf Wasser gehen?"
 	ti.Focus()
 	ti.CharLimit = 156
-	ti.Width = 20
 
 	return model{
 		currentView: 0,
@@ -70,6 +69,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		h, v := docStyle.GetFrameSize()
 		switch m.currentView {
+		case 0:
+			m.input.Width = msg.Width - h
 		case 1:
 			m.list.SetSize(msg.Width-h, msg.Height-v)
 		}
@@ -103,7 +104,7 @@ func (m model) View() string {
 		return fmt.Sprintf(
 			"Stelle eine Quiz Frage zur Bibel:\n\n%s\n\n%s",
 			m.input.View(),
-			"(esc to quit)",
+			"(q to quit)",
 		) + "\n"
 	}
 	return quitTextStyle.Render("Es gibt keine current view")
